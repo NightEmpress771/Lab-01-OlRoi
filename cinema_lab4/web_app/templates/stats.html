@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Статистика</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>📊 Статистика продажів</header>
+    <nav>
+        <a href="{{ url_for('films') }}">Фільми</a>
+        <a href="{{ url_for('tickets') }}">Сеанси</a>
+        <a href="{{ url_for('stats') }}">Статистика</a>
+    </nav>
+
+    <h2 style="text-align:center;">Популярні фільми</h2>
+    <table>
+        <tr>
+            <th>Назва фільму</th>
+            <th>Продано квитків</th>
+            <th>Дохід (грн)</th>
+        </tr>
+        {% for row in stats %}
+        <tr>
+            <td>{{ row[1] }}</td>
+            <td>{{ row[2] }}</td>
+            <td>{{ row[3] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

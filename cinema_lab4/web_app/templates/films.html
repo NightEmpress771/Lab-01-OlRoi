@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Фільми</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>🎬 Список фільмів</header>
+    <nav>
+        <a href="{{ url_for('films') }}">Фільми</a>
+        <a href="{{ url_for('tickets') }}">Сеанси</a>
+        <a href="{{ url_for('stats') }}">Статистика</a>
+        <a href="{{ url_for('clients') }}">Покупці</a>
+    </nav>
+
+    <div style="text-align:center; margin-top: 20px;">
+        <form method="POST" style="display:inline-block;">
+            <label for="genre">Фільтрувати за жанром:</label>
+            <input type="text" id="genre" name="genre" placeholder="Наприклад: Горор">
+            <button type="submit">🔍 Пошук</button>
+            <a href="{{ url_for('films') }}" style="margin-left: 10px;">Очистити</a>
+        </form>
+    </div>
+
+    <h2 style="text-align:center;">Список фільмів</h2>
+
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Назва</th>
+            <th>Жанр</th>
+            <th>Тривалість</th>
+            <th>Ціна</th>
+            <th>Рік</th>
+        </tr>
+        {% if films %}
+            {% for f in films %}
+            <tr>
+                <td>{{ f[0] }}</td>
+                <td>{{ f[1] }}</td>
+                <td>{{ f[2] }}</td>
+                <td>{{ f[3] }} хв</td>
+                <td>{{ f[4] }} грн</td>
+                <td>{{ f[5] }}</td>
+            </tr>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="6" style="text-align:center;">Немає фільмів для відображення</td>
+            </tr>
+        {% endif %}
+    </table>
+</body>
+</html>

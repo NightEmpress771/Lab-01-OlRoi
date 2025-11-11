@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Кінотеатр</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>🎬 Кінотеатр — головна сторінка</header>
+    <nav>
+        <a href="{{ url_for('films') }}">Фільми</a>
+        <a href="{{ url_for('tickets') }}">Сеанси / Квитки</a>
+        <a href="{{ url_for('stats') }}">Статистика</a>
+    </nav>
+    <main style="text-align:center; padding: 30px;">
+        <h2>Ласкаво просимо до системи кінотеатру!</h2>
+        <p>Оберіть розділ у меню вище, щоб переглянути дані.</p>
+    </main>
+</body>
+</html>

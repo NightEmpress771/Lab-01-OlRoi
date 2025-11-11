@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Сеанси і квитки</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>🎟️ Продаж квитків</header>
+    <nav>
+        <a href="{{ url_for('films') }}">Фільми</a>
+        <a href="{{ url_for('tickets') }}">Сеанси</a>
+        <a href="{{ url_for('stats') }}">Статистика</a>
+    </nav>
+
+    <h2 style="text-align:center;">Розклад сеансів</h2>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Фільм</th>
+            <th>Зал</th>
+            <th>Час</th>
+            <th>Доступні місця</th>
+        </tr>
+        {% for s in sessions %}
+        <tr>
+            <td>{{ s[0] }}</td>
+            <td>{{ s[1] }}</td>
+            <td>{{ s[2] }}</td>
+            <td>{{ s[3] }}</td>
+            <td>{{ s[4] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div style="text-align:center;">
+        <h3>Оформити квиток</h3>
+        <form method="POST">
+            ID сеансу: <input type="number" name="session_id" required>
+            Ім'я клієнта: <input type="text" name="customer_name" required>
+            <button type="submit">Придбати</button>
+        </form>
+    </div>
+</body>
+</html>

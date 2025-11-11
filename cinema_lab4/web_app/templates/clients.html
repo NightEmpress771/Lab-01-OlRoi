@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Покупці квитків</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>🧾 Список клієнтів</header>
+    <nav>
+        <a href="{{ url_for('films') }}">Фільми</a>
+        <a href="{{ url_for('tickets') }}">Сеанси</a>
+        <a href="{{ url_for('stats') }}">Статистика</a>
+        <a href="{{ url_for('clients') }}">Покупці</a>
+    </nav>
+
+    <h2 style="text-align:center;">Список клієнтів</h2>
+    <table>
+        <tr>
+            <th>ID квитка</th>
+            <th>Ім'я клієнта</th>
+            <th>Фільм</th>
+            <th>Зал</th>
+            <th>Час сеансу</th>
+        </tr>
+        {% for c in clients %}
+        <tr>
+            <td>{{ c[0] }}</td>
+            <td>{{ c[1] }}</td>
+            <td>{{ c[2] }}</td>
+            <td>{{ c[3] }}</td>
+            <td>{{ c[4] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
