@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Аналітична Панель Блогу</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f4; color: #333; }
+        header { background: #2c3e50; color: white; padding: 1rem 0; text-align: center; }
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; display: flex; flex-wrap: wrap; gap: 20px; }
+        .chart-box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); width: calc(50% - 10px); min-height: 400px; }
+        @media (max-width: 900px) {
+            .chart-box { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>📈 Аналітична Панель: Статистика MongoDB</h1>
+    </header>
+
+    <div class="container">
+        <div class="chart-box">
+            <h2>Топ 10 Авторів за Кількістю Постів (з кешуванням)</h2>
+            <canvas id="topAuthorsChart"></canvas>
+        </div>
+        <div class="chart-box">
+            <h2>Топ 10 Авторів за Загальною Кількістю Переглядів</h2>
+            <canvas id="topViewsChart"></canvas>
+        </div>
+        </div>
+
+    <script>
+        // Функція для отримання даних з API
+        async function fetchTopAuthors() {
+            try {
+                const response = await fetch('/api/stats/top-authors'); // Викликаємо API з кешуванням
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                return null;
+            }
+        }
+
+        // Функція для побудови графіків
+        async function renderCharts() {
+            const data = await fetchTopAuthors();
+
+            if (!data || data.length === 0) {
+                document.querySelector('.container').innerHTML = '<p style="text-align: center;">Дані для аналітики відсутні або помилка API.</p>';
+                return;
+            }
+
+            const authorNames = data.map(item => item.username);
+            const postCounts = data.map(item => item.posts_count);
+            const totalViews = data.map(item => item.total_views);
+
+            // 1. Графік: Пости за автором
+            new Chart(document.getElementById('topAuthorsChart'), {
+                type: 'bar',
+                data: {
+                    labels: authorNames,
+                    datasets: [{
+                        label: 'Кількість Постів',
+                        data: postCounts,
+                        backgroundColor: 'rgba(52, 152, 219, 0.6)',
+                        borderColor: 'rgba(52, 152, 219, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Кількість Постів' } }
+                    }
+                }
+            });
+
+            // 2. Графік: Перегляди за автором
+            new Chart(document.getElementById('topViewsChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: authorNames,
+                    datasets: [{
+                        label: 'Загальні Перегляди',
+                        data: totalViews,
+                        backgroundColor: [
+                            '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#34495e',
+                            '#1abc9c', '#e67e22', '#3498db', '#95a5a6', '#d35400'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: 'Розподіл Переглядів' }
+                    }
+                }
+            });
+        }
+
+        window.onload = renderCharts;
+    </script>
+</body>
+</html>

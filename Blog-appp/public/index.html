@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Блог на MongoDB</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; background: #f4f4f4; color: #333; }
+        .container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+        header { background: #2c3e50; color: white; padding: 1rem 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; margin-bottom: 20px; }
+        .search-bar, .pagination, .post-form { margin: 20px 0; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+        .search-bar input, .post-form input, .post-form textarea, .post-form button { padding: 10px; margin-right: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .search-bar button, .post-form button, .like-button, .page-button { background: #3498db; color: white; border: none; cursor: pointer; }
+        .posts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .post-card { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 15px; }
+        .post-card h3 { color: #2c3e50; margin-bottom: 5px; }
+        .post-meta { font-size: 0.85rem; color: #7f8c8d; margin-bottom: 10px; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; border-radius: 8px; }
+        .close-modal { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+        .comments-list { margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
+        .comment { background: #f9f9f9; padding: 10px; margin-bottom: 5px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <header><div class="container"><h1>📝 MongoDB Blog System</h1></div></header>
+
+    <div class="container">
+        <h2>Додати Новий Пост</h2>
+        <div class="post-form">
+            <input type="text" id="postTitle" placeholder="Назва статті" required>
+            <input type="text" id="postAuthorId" placeholder="ID Автора (ObjectId)" required>
+            <input type="text" id="postCategoryId" placeholder="ID Категорії (ObjectId)">
+            <input type="text" id="postTags" placeholder="Теги (через кому)">
+            <textarea id="postContent" placeholder="Текст статті" required></textarea>
+            <button onclick="submitPost()">Опублікувати (Draft)</button>
+        </div>
+
+        <h2>Останні Статті</h2>
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="Повнотекстовий пошук...">
+            <button onclick="loadPosts(1)">Шукати</button>
+        </div>
+
+        <div id="postsGrid" class="posts-grid">
+            </div>
+
+        <div id="pagination" class="pagination" style="text-align: center;">
+            </div>
+    </div>
+
+    <div id="postModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <div id="postDetails"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let currentSearch = '';
+
+        // --- ФУНКЦІЇ ДЛЯ API ---
+
+        async function fetchAPI(url, method = 'GET', data = null) {
+            const options = {
+                method,
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                throw new Error(`Помилка HTTP: ${response.status}`);
+            }
+            return response.json();
+        }
+
+        // 1. Завантаження постів з пагінацією та пошуком
+        async function loadPosts(page = 1) {
+            currentPage = page;
+            currentSearch = document.getElementById('searchInput').value;
+            const limit = 10;
+            const grid = document.getElementById('postsGrid');
+            grid.innerHTML = 'Завантаження...';
+            
+            try {
+                const url = `/api/posts?page=${currentPage}&limit=${limit}&search=${currentSearch}`;
+                const data = await fetchAPI(url);
+                
+                grid.innerHTML = '';
+                data.posts.forEach(post => {
+                    grid.appendChild(createPostCard(post));
+                });
+                
+                updatePagination(data.currentPage, data.totalPages);
+                
+            } catch (error) {
+                grid.innerHTML = `<p style="color: red;">Помилка завантаження: ${error.message}</p>`;
+            }
+        }
+
+        // 2. Створення картки посту
+        function createPostCard(post) {
+            const card = document.createElement('div');
+            card.className = 'post-card';
+            
+            const content = `
+                <h3>${post.title}</h3>
+                <div class="post-meta">
+                    <span>👤 ${post.author.username}</span> | 
+                    <span>📁 ${post.category.name}</span> | 
+                    <span>👁️ ${post.statistics.views}</span> | 
+                    <span>❤️ ${post.statistics.likes}</span>
+                </div>
+                <p>${post.excerpt}</p>
+                <button onclick="showPostDetails('${post.slug}')">Деталі</button>
+            `;
+            card.innerHTML = content;
+            return card;
+        }
+
+        // 3. Відображення деталей посту
+        async function showPostDetails(slug) {
+            const modal = document.getElementById('postModal');
+            const details = document.getElementById('postDetails');
+            details.innerHTML = 'Завантаження...';
+            modal.style.display = 'block';
+
+            try {
+                const post = await fetchAPI(`/api/posts/${slug}`);
+                
+                // Формування коментарів (вбудованих)
+                const commentsHtml = post.comments.map(c => `
+                    <div class="comment">
+                        <strong>${c.author.username}</strong> 
+                        <span style="float: right;">${new Date(c.created_at).toLocaleDateString()}</span>
+                        <p>${c.text}</p>
+                    </div>
+                `).join('');
+
+                details.innerHTML = `
+                    <h2>${post.title}</h2>
+                    <p class="post-meta">Автор: ${post.author.username} | Категорія: ${post.category.name}</p>
+                    <p style="white-space: pre-wrap;">${post.content}</p>
+                    <button class="like-button" onclick="addLike('${post._id}', this)">❤️ Лайк (${post.statistics.likes})</button>
+
+                    <div class="comments-list">
+                        <h3>Коментарі (${post.comments.length})</h3>
+                        ${commentsHtml || '<p>Коментарів немає.</p>'}
+                    </div>
+                `;
+
+            } catch (error) {
+                details.innerHTML = `<p style="color: red;">Помилка: ${error.message}</p>`;
+            }
+        }
+
+        // 4. Додавання лайку (Рівень 2)
+        async function addLike(postId, button) {
+            try {
+                await fetchAPI(`/api/posts/${postId}/like`, 'POST');
+                alert('Лайк успішно додано!');
+                // Оновлення лічильника на кнопці
+                const currentLikes = parseInt(button.textContent.match(/\d+/)[0]);
+                button.textContent = `❤️ Лайк (${currentLikes + 1})`;
+            } catch (error) {
+                alert('Помилка при додаванні лайку: ' + error.message);
+            }
+        }
+        
+        // 5. Обробка пагінації (Рівень 2)
+        function updatePagination(current, total) {
+            const paginationDiv = document.getElementById('pagination');
+            paginationDiv.innerHTML = '';
+
+            for (let i = 1; i <= total; i++) {
+                const button = document.createElement('button');
+                button.className = 'page-button';
+                button.textContent = i;
+                button.style.margin = '0 5px';
+                if (i === current) {
+                    button.style.backgroundColor = '#2980b9';
+                }
+                button.onclick = () => loadPosts(i);
+                paginationDiv.appendChild(button);
+            }
+        }
+
+        // 6. Обробка форми додавання посту (Рівень 2)
+        async function submitPost() {
+            const title = document.getElementById('postTitle').value;
+            const content = document.getElementById('postContent').value;
+            const author_id = document.getElementById('postAuthorId').value;
+            const category_id = document.getElementById('postCategoryId').value;
+            const tags = document.getElementById('postTags').value.split(',').map(t => t.trim()).filter(t => t.length > 0);
+            const excerpt = content.substring(0, 150) + '...';
+
+            if (!title || !content || !author_id) {
+                alert('Будь ласка, заповніть Назву, Текст та ID Автора.');
+                return;
+            }
+
+            try {
+                const data = { title, content, author_id, category_id, tags, excerpt };
+                const result = await fetchAPI('/api/posts', 'POST', data);
+                
+                alert(`${result.message} Новий пост з slug: ${result.slug}`);
+                
+                // Очищення форми та оновлення списку
+                document.getElementById('postTitle').value = '';
+                document.getElementById('postContent').value = '';
+                // Інші поля можна залишити для зручності
+                
+                loadPosts(1);
+
+            } catch (error) {
+                alert('Помилка при створенні посту: ' + error.message);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('postModal').style.display = 'none';
+        }
+
+        // Запуск при завантаженні сторінки
+        window.onload = () => loadPosts();
+    </script>
+</body>
+</html>
