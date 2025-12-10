@@ -64,6 +64,7 @@ CREATE INDEX idx_tickets_session_id ON tickets(session_id);
 CREATE INDEX idx_tickets_customer_name ON tickets(customer_name);
 CREATE INDEX idx_expensive_tickets ON tickets(session_id)
 WHERE price > 200;
+```
 
 Чому вони потрібні:
 
@@ -75,24 +76,31 @@ WHERE price > 200;
 
 індекс на ПІБ покупців корисний для пошуку клієнтів.
 
-1.🖼️ Представлення (VIEW)
-Повна інформація про сеанси
+##1.🖼️ Представлення (VIEW)
+###Повна інформація про сеанси
 
+```sql
 CREATE VIEW sessions_full AS
 SELECT s.*, f.title, h.name AS hall_name
 FROM sessions s
 JOIN films f ON s.film_id = f.film_id
 JOIN halls h ON s.hall_id = h.hall_id;
+```
 
-2.Продажі по фільмах
+## 2.Продажі по фільмах
+
+```sql
 CREATE VIEW film_sales AS
 SELECT f.title, COUNT(t.ticket_id) AS sold, SUM(f.price) AS income
 FROM films f
 LEFT JOIN sessions s ON f.film_id = s.film_id
 LEFT JOIN tickets t ON s.session_id = t.session_id
 GROUP BY f.title;
+```
 
-3.VIEW з можливим UPDATE через RULE
+## 3.VIEW з можливим UPDATE через RULE
+
+```sql
 CREATE VIEW short_films AS
 SELECT * FROM films WHERE duration < 90;
 
@@ -101,23 +109,30 @@ ON UPDATE TO short_films
 DO INSTEAD
 UPDATE films SET duration = NEW.duration
 WHERE film_id = OLD.film_id;
+```
 
-📈 Матеріалізоване представлення (MATERIALIZED VIEW)
-Використовується для агрегованих даних з метою швидкого доступу
+## 📈 Матеріалізоване представлення (MATERIALIZED VIEW)
+### Використовується для агрегованих даних з метою швидкого доступу
 
+```sql
 CREATE MATERIALIZED VIEW film_sales_mat AS
 SELECT f.film_id, f.title, COUNT(t.ticket_id) sold, SUM(f.price) income
 FROM films f
 LEFT JOIN sessions s ON f.film_id = s.film_id
 LEFT JOIN tickets t ON s.session_id = t.session_id
 GROUP BY f.film_id, f.title;
+```
 
-Індекс:
+### Індекс:
+
+```sql
 CREATE INDEX idx_film_sales_mat_movie ON film_sales_mat(film_id);
+```
 
-⚙️ Тригери та функції
-1. Логування змін sessions
+## ⚙️ Тригери та функції
+## 1. Логування змін sessions
 
+```sql
 CREATE TABLE logs (
     id SERIAL PRIMARY KEY,
     table_name TEXT,
@@ -143,9 +158,11 @@ CREATE TRIGGER trg_log_sessions
 AFTER INSERT OR UPDATE OR DELETE ON sessions
 FOR EACH ROW
 EXECUTE FUNCTION log_sessions_changes();
+```
 
-2. Валідація фільму (films)
+## 2. Валідація фільму (films)
 
+```sql
 CREATE OR REPLACE FUNCTION validate_film() RETURNS TRIGGER AS $$
 BEGIN
     IF NEW.duration <= 0 THEN
@@ -162,9 +179,11 @@ CREATE TRIGGER trg_validate_film
 BEFORE INSERT OR UPDATE ON films
 FOR EACH ROW
 EXECUTE FUNCTION validate_film();
+```
 
-3. Аудит tickets
+## 3. Аудит tickets
 
+```sql
 CREATE TABLE audit_log (
     id SERIAL PRIMARY KEY,
     table_name TEXT,
@@ -194,8 +213,11 @@ CREATE TRIGGER trg_audit_tickets
 AFTER INSERT OR UPDATE OR DELETE ON tickets
 FOR EACH ROW
 EXECUTE FUNCTION audit_tickets();
+```
 
-4. Автоматичне оновлення матеріалізованого представлення
+## 4. Автоматичне оновлення матеріалізованого представлення
+
+```sql
 CREATE OR REPLACE FUNCTION refresh_sales_mat() RETURNS TRIGGER AS $$
 BEGIN
     REFRESH MATERIALIZED VIEW CONCURRENTLY film_sales_mat;
@@ -207,62 +229,81 @@ CREATE TRIGGER trg_refresh_sales
 AFTER INSERT OR UPDATE OR DELETE ON tickets
 FOR EACH STATEMENT
 EXECUTE FUNCTION refresh_sales_mat();
+```
 
-✅ Текстовий вивід перевірки роботи тригерів
-1. Перевірка логування sessions
+##✅ Текстовий вивід перевірки роботи тригерів
+## 1. Перевірка логування sessions
 
-Запит:
+### Запит:
+
+```sql
 INSERT INTO sessions (film_id,hall_id,session_time,available_seats)
 VALUES (1,1,now() + interval '1 hour',50);
+```
 
-Результат:
+### Результат:
+
+```sql
 id | table_name | operation | data                                      | created_at
 ---+------------+-----------+--------------------------------------------+------------------------
 12 | sessions   | INSERT    | {"film_id":1,"hall_id":1,"available":50}   | 2025-11-17 17:55:10
+```
 
-2. Перевірка валідації films
 
-Запит:
+## 2. Перевірка валідації films
+
+### Запит:
+
+```sql
 INSERT INTO films (title,genre,duration,price,release_year)
 VALUES ('Bad', 'Test', 0, 100, 2023);
+```
+### Результат:
 
-Результат:
-
+```sql
 ERROR: Duration must be > 0
+```
 
+## 3. Перевірка аудиту tickets
 
-3. Перевірка аудиту tickets
+### Запити:
 
-Запити:
+```sql
 INSERT INTO tickets (session_id,customer_name) VALUES (1,'Tester');
 UPDATE tickets SET customer_name='Tester2' WHERE customer_name='Tester';
 DELETE FROM tickets WHERE customer_name='Tester2';
 SELECT * FROM audit_log;
+```
 
-Результат:
+### Результат:
+
+```sql
 id | table_name | operation | old_data | new_data
 ---+------------+-----------+----------+---------------------------------------------------
 1  | tickets    | INSERT    | NULL     | {"session_id":1,"customer_name":"Tester"}
 2  | tickets    | UPDATE    | {"old":...} | {"new":...}
 3  | tickets    | DELETE    | {"session_id":1,"customer_name":"Tester2"} | NULL
+```
 
+## 4. Оновлення матеріалізованого представлення
 
-4. Оновлення матеріалізованого представлення
+### Перед вставкою:
 
-Перед вставкою:
+```sql
 title  | sold
 --------+------
  A Film | 250
+```
 
+ ### Після вставки:
 
- Після вставки:
-
+```sql
  title  | sold
 --------+------
  A Film | 251
+```
 
-
- 📝 Висновки
+## 📝 Висновки
 У ході лабораторної роботи було виконано:
 
 ✔ створення оптимізаційних індексів;
